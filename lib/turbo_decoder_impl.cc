@@ -25,7 +25,14 @@
 #include <gnuradio/io_signature.h>
 #include "turbo_decoder_impl.h"
 
-#undef _DEBUG
+#undef DEBUG
+#undef DEBUG_DEC
+
+#ifdef DEBUG
+#define debug_printf printf
+#else
+#define debug_printf(...) if (false) printf(__VA_ARGS__)
+#endif
 
 namespace gr {
 	namespace blocksat {
@@ -42,8 +49,8 @@ namespace gr {
 		 */
 		turbo_decoder_impl::turbo_decoder_impl(int N, int K, int n_ite)
 			: gr::block("turbo_decoder",
-			            gr::io_signature::make(1, 1, sizeof(signed char)),
-			            gr::io_signature::make(1, 1, sizeof(unsigned char)))
+			            gr::io_signature::make(1, 1, sizeof(float)),
+			            gr::io_signature::make(1, 1, sizeof(int)))
 		{
 
 			std::vector<int> poly = {013, 015};
@@ -56,23 +63,23 @@ namespace gr {
 			sub_enc = new module::Encoder_RSC_generic_sys<B_8> (K, N_cw, true, poly);
 			std::vector<std::vector<int>> trellis = sub_enc->get_trellis();
 
-#ifdef _DEBUG
+#ifdef DEBUG_DEC
 			printf("Treliss: ");
 			for(int i =0; i<8; i++)
 				printf("%d ", trellis[0][i]);
 			printf("\n");
 #endif
 
-			sub_dec = new module::Decoder_RSC_BCJR_seq_very_fast <B_8,Q_8,QD_8,tools::max<Q_8>,tools::max<QD_8>> (K, trellis);
+			sub_dec = new module::Decoder_RSC_BCJR_seq_very_fast <int,float,float,tools::max<float>,tools::max<float>> (K, trellis);
 
-			dec = new module::Decoder_turbo_fast<B_8,Q_8>(K, N, n_ite, *interleaver, *sub_dec, *sub_dec);
+			dec = new module::Decoder_turbo_fast<int, float>(K, N, n_ite, *interleaver, *sub_dec, *sub_dec);
 
 			set_fixed_rate(true);
 			set_relative_rate((double)K/(double)N);
 			set_output_multiple(K);
 
-			d_input_size  = N * sizeof(signed char);
-			d_output_size = K * sizeof(signed char);
+			d_input_size  = N * sizeof(float);
+			d_output_size = K * sizeof(int);
 		}
 
 		/*
@@ -85,18 +92,16 @@ namespace gr {
 		int
 		turbo_decoder_impl::fixed_rate_ninput_to_noutput(int ninput)
 		{
-#ifdef _DEBUG
-			printf("[dec] input to output: %f\n", 0.5 + ninput*relative_rate());
-#endif
+			debug_printf("[dec] input to output: %f\n", 0.5 + ninput*relative_rate());
+
 			return (int)(0.5 + ninput*relative_rate());
 		}
 
 		int
 		turbo_decoder_impl::fixed_rate_noutput_to_ninput(int noutput)
 		{
-#ifdef _DEBUG
-			printf("[dec] output to input: %f\n", 0.5 + noutput/relative_rate());
-#endif
+			debug_printf("[dec] output to input: %f\n", 0.5 + noutput/relative_rate());
+
 			return (int)(0.5 + noutput/relative_rate());
 		}
 
@@ -105,9 +110,8 @@ namespace gr {
 		                             gr_vector_int& ninput_items_required)
 		{
 			ninput_items_required[0] = fixed_rate_noutput_to_ninput(noutput_items);
-#ifdef _DEBUG
-			printf("[dec] Forecast %d %d\n", noutput_items, ninput_items_required[0]);
-#endif
+
+			debug_printf("[dec] Forecast %d %d\n", noutput_items, ninput_items_required[0]);
 		}
 
 		int
@@ -117,19 +121,21 @@ namespace gr {
 		                                 gr_vector_void_star &output_items)
 		{
 
-			signed char *inbuffer  = (signed char*)input_items[0];
-			signed char *outbuffer = (signed char*)output_items[0];
-#ifdef _DEBUG
-			printf("[dec] in[%d] out[%d]\n", ninput_items[0], noutput_items);
-#endif
+			float *inbuffer = (float *)input_items[0];
+			int *outbuffer  = (int *)output_items[0];
+
+			debug_printf("[dec] in[%d] out[%d]\n", ninput_items[0], noutput_items);
+
+			debug_printf("%s: output_multiple - %d\n", __func__,
+			             output_multiple());
 
 			for(int i = 0; i < noutput_items/output_multiple(); i++) {
 				dec->_decode_siho(inbuffer+(i*d_input_size), outbuffer+(i*d_output_size), 0);
 
-#ifdef _DEBUG
+#ifdef DEBUG_DEC
 				printf("dec_in = ");
 				for(int j = 0; j< d_input_size; j++)
-					printf("%d ", inbuffer[i*d_input_size+j]);
+					printf("%f ", inbuffer[i*d_input_size+j]);
 				printf("\n");
 				printf("dec_out = ");
 				for(int j = 0; j< d_output_size; j++)

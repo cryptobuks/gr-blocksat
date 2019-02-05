@@ -22,10 +22,10 @@
   </param>
   <sink>
     <name>in</name>
-    <type>byte</type>
+    <type>float</type>
   </sink>
   <source>
     <name>out</name>
-    <type>byte</type>
+    <type>int</type>
   </source>
 </block>

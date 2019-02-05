@@ -45,9 +45,9 @@ namespace gr {
 			// Nothing to declare in this block.
 			module::Encoder_RSC_generic_sys<B_8> *sub_enc;
 			module::Decoder_RSC_BCJR_seq_very_fast
-			<B_8,Q_8,QD_8,tools::max<Q_8>,tools::max<QD_8>> * sub_dec;
+			<int,float,float,tools::max<float>,tools::max<float>> * sub_dec;
 			module::Interleaver_LTE<int> *interleaver;
-			module::Decoder_turbo_fast<B_8,Q_8> *dec;
+			module::Decoder_turbo_fast<int, float> *dec;
 			int d_input_size  ;
 			int d_output_size ;
 
